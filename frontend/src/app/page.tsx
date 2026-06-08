@@ -107,7 +107,8 @@ export default function Home() {
     const historyToSend = updatedChat.messages;
 
     try {
-      const response = await fetch("http://localhost:8000/api/chat", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/chat";
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
