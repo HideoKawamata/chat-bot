@@ -1,20 +1,20 @@
 import os
 from pathlib import Path
-import google.generativeai as genai
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
 
+from google import genai
+from google.genai import types
+
 # Load environment variables from .env file explicitly from backend directory
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-# Configure Gemini API
+# Configure Gemini API Key
 API_KEY = os.getenv("GEMINI_API_KEY")
-if API_KEY:
-    genai.configure(api_key=API_KEY)
 
 # Initialize FastAPI app
 app = FastAPI(title="Cat-Bot API")
@@ -22,7 +22,7 @@ app = FastAPI(title="Cat-Bot API")
 # Configure CORS to allow requests from the Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://chat-bot.vercel.app"], # Allowing localhost and potential Vercel deployment URL
+    allow_origins=["http://localhost:3000", "https://chat-bot.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,14 +45,23 @@ async def chat(request: ChatRequest):
          raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not configured on the backend.")
     
     try:
+        # Initialize the new genai client
+        client = genai.Client(api_key=API_KEY)
+        
         # Convert frontend messages to Gemini history format (user -> user, bot -> model)
         gemini_history = []
-        # Exclude the last message, as it will be sent via send_message
         for msg in request.messages[:-1]:
             role = "user" if msg.role == "user" else "model"
-            gemini_history.append({"role": role, "parts": [msg.content]})
+            gemini_history.append(
+                types.Content(role=role, parts=[types.Part.from_text(text=msg.content)])
+            )
             
         latest_message = request.messages[-1].content
+        
+        # Add the latest message to the contents array
+        gemini_history.append(
+            types.Content(role="user", parts=[types.Part.from_text(text=latest_message)])
+        )
         
         # Configure system instruction based on the requested language
         system_instruction = "You are a cute cat AI assistant. Always append 'meow' to the end of your responses and talk in a friendly, cat-like manner in English."
@@ -61,15 +70,14 @@ async def chat(request: ChatRequest):
         elif request.language == "zh":
             system_instruction = "你是一只可爱的小猫AI助手。在回答用户问题时，请务必在句尾加上“喵”，并用友好、像猫一样的语气用中文回复。"
         
-        # Configure the model with the dynamic system instruction
-        model = genai.GenerativeModel(
-            'gemini-2.5-flash',
-            system_instruction=system_instruction
+        # Generate content with the new SDK
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=gemini_history,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+            )
         )
-        
-        # Start chat with history
-        chat = model.start_chat(history=gemini_history)
-        response = chat.send_message(latest_message)
         
         return ChatResponse(reply=response.text)
     except Exception as e:
