@@ -22,7 +22,7 @@ app = FastAPI(title="Cat-Bot API")
 # Configure CORS to allow requests from the Next.js frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://chat-bot.vercel.app"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "https://chat-bot.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

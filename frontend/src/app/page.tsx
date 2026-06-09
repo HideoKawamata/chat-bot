@@ -114,7 +114,7 @@ export default function Home() {
     const historyToSend = updatedChat.messages;
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/chat";
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api/chat";
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
